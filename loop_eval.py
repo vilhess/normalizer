@@ -7,8 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import os
 
 from modules import get_model
-from scorer import MetricScorer
-from utils import save_results_json
+from scorer import MetricScorer, save_results_json
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

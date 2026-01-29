@@ -1,4 +1,5 @@
 import torch
+import json
 
 class MetricScorer:
     def __init__(self, max_pred_len=256, patch_len=8):
@@ -52,3 +53,7 @@ def mase(forecast, context, ground_truth):
     
     score_mase = numerator / divider
     return score_mase.mean()
+
+def save_results_json(results, filename):
+    with open(filename, "w") as f:
+        json.dump(results, f)
