@@ -1,0 +1,9 @@
+*.ckpt
+archive/
+*__pycache__/
+*.DS_Store
+*.pdf
+data/
+checkpoints/
+outputs/
+logs/

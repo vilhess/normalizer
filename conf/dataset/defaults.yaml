@@ -1,0 +1,6 @@
+testsets: 
+  - utsd
+  - gift_eval
+  - artificial 
+
+max_pred_len: 512 # for prediction rollouts (do not edit)

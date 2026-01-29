@@ -1,0 +1,9 @@
+normalizer_name: CausalRevIN
+use_asinh: true
+context_length: 1024
+
+# Do not edit below this line
+patch_len: 32
+d_model: 2048
+n_heads: 64
+n_layers_encoder: 6
