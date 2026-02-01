@@ -37,8 +37,7 @@ def main(config: DictConfig):
 
             if name == "utsd":
                 print(f"Loading UTSD dataset for evaluation...")
-                utsd = UTSDataset(input_len=seq_len, output_len=eval_target_len, stride=128, flag="val", subset_name="UTSD-12G",
-                                cache_dir="/lustre/fsn1/projects/rech/ulm/uww31rp/huggingface/utsd12g")
+                utsd = UTSDataset(input_len=seq_len, output_len=eval_target_len, stride=128, flag="val", subset_name="UTSD-12G")
                 test_datasets["utsd"] = utsd
 
             elif name == "gift_eval":
@@ -53,7 +52,7 @@ def main(config: DictConfig):
 
         print(f"Datasets ready.")
 
-        for revin_name in ["CausalRevIN", "RevIN", "WURevIN"]:
+        for revin_name in ["CausalRevIN", "RevIN", "WURevIN", "WURevIN2"]:
             for use_asinh in [True, False]:
                 torch.manual_seed(0)
                 random.seed(0)

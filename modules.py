@@ -166,6 +166,15 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         return out
     
 def get_model(revin_strategy, use_asinh, device='cpu'):
-    model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
+
+    if revin_strategy=="WURevIN2": # ablation study for warm-up strategy replaced by naive during inference
+        print("Using WURevIN2 strategy for ablation study: warm-up replaced by naive (optimal) during inference.")
+        revin_strategy = "WURevIN"
+        model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
+        model.revin=RevIN(asinh=use_asinh)
+
+    else:
+        model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
+        
     model.to(device)
     return model
