@@ -1,8 +1,8 @@
-# Do Normalization Choices Matter for Causal Time-Series Foundation Models?
+# Do Normalization Choice Matter for Causal Time-Series Foundation Models?
 
 This repository contains the official code for the paper:
 
-**Do Normalization Choices Matter for Causal Time-Series Foundation Models?**
+**Do Normalization Choice Matter for Causal Time-Series Foundation Models?**
 
 ---
 
