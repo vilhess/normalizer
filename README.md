@@ -31,7 +31,6 @@ pip install -r requirements.txt
 ```
 
 ---
-
 ## Running Experiments
 
 To reproduce a single result from the paper, run:
@@ -41,7 +40,7 @@ python eval.py model.normalizer_name=<NORMALIZER_NAME> model.use_asinh=<True/Fal
 ```
 
 Where: 
-- `<NORMALIZER_NAME>`: One of `CausalRevIN`, `RevIN`, or `WURevIN`.  
+- `<NORMALIZER_NAME>`: One of `CausalRevIN`, `RevIN`, or `PrefixRevIN`.  
 - `<True/False>`: Whether to use the asinh transformation.  
 - `<DATASET_NAME1>,<DATASET_NAME2>,...`: List of dataset names to evaluate on ('gift_eval', 'artificial', 'utsd').  
 - `<CONTEXT_LENGTH>`: Context length for the model (Recommend 128, 256, 512, 1024).

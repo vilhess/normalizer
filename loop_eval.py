@@ -52,7 +52,7 @@ def main(config: DictConfig):
 
         print(f"Datasets ready.")
 
-        for revin_name in ["CausalRevIN", "RevIN", "WURevIN", "WURevIN2"]:
+        for revin_name in ["CausalRevIN", "RevIN", "PrefixRevIN", "PrefixRevIN2"]:
             for use_asinh in [True, False]:
                 torch.manual_seed(0)
                 random.seed(0)

@@ -92,14 +92,14 @@ class CausalRevIN(nn.Module):
 
         return mean, std
 
-class WURevIN(nn.Module):
-    def __init__(self, eps=1e-5, asinh=True, wu_tokens=8):
+class PrefixRevIN(nn.Module):
+    def __init__(self, eps=1e-5, asinh=True, prefix_tokens=8):
         super().__init__()
         self.eps = eps
         self.cached_mean = None
         self.cached_std = None
         self.asinh = asinh
-        self.wu_tokens = wu_tokens
+        self.prefix_tokens = prefix_tokens
 
     def forward(self, x, mode: str):
         assert x.dim() == 3, "Input tensor must be (batch, n_patches, patch_len)"
@@ -123,11 +123,11 @@ class WURevIN(nn.Module):
         return out
 
     def _get_statistics(self, x):
-        mean = x[:, :self.wu_tokens, :].mean(dim=(-1, -2), keepdim=True)
-        std = x[:, :self.wu_tokens, :].std(dim=(-1, -2), keepdim=True) + self.eps
+        mean = x[:, :self.prefix_tokens, :].mean(dim=(-1, -2), keepdim=True)
+        std = x[:, :self.prefix_tokens, :].std(dim=(-1, -2), keepdim=True) + self.eps
         return mean, std
     
     def _get_attn_mask(self, seq_len):
         mask = torch.tril(torch.ones(seq_len, seq_len))
-        mask[:, :self.wu_tokens] = 1
+        mask[:, :self.prefix_tokens] = 1
         return mask

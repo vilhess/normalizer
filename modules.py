@@ -3,7 +3,7 @@ import torch.nn as nn
 from rotary_embedding_torch import RotaryEmbedding
 from einops import rearrange
 from huggingface_hub import PyTorchModelHubMixin
-from normalizer import RevIN, CausalRevIN, WURevIN
+from normalizer import RevIN, CausalRevIN, PrefixRevIN
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_dim, hid_dim, out_dim, dropout=0.):
@@ -34,7 +34,7 @@ class MultiHeadAttention(nn.Module):
         self.n_heads = n_heads
         self.rope = RotaryEmbedding(dim=self.head_dim//2)
     
-    def forward(self, q, wu_tokens=None):
+    def forward(self, q, prefix_tokens=None):
         bs, context, dim = q.size()
         k = q
         v = q
@@ -43,13 +43,13 @@ class MultiHeadAttention(nn.Module):
         v = self.WV(v).reshape(bs, -1, self.n_heads, self.head_dim).transpose(1, 2)
         q  = self.rope.rotate_queries_or_keys(q)
         k = self.rope.rotate_queries_or_keys(k)
-        if (wu_tokens is None) or (wu_tokens==0):
+        if (prefix_tokens is None) or (prefix_tokens==0):
             values = nn.functional.scaled_dot_product_attention(
                 q, k, v, is_causal=True, dropout_p=self.dropout if self.training else 0.0
             )
-        elif wu_tokens:
+        elif prefix_tokens:
             mask = torch.tril(torch.ones(q.size(-2), q.size(-2)))
-            mask[:, :wu_tokens] = 1
+            mask[:, :prefix_tokens] = 1
             mask = mask.bool().to(q.device)
             values = nn.functional.scaled_dot_product_attention(
                 q, k, v, attn_mask=mask, dropout_p=self.dropout if self.training else 0.0
@@ -82,8 +82,8 @@ class TransformerEncoderLayer(nn.Module):
         self.ln2 = nn.LayerNorm(d_model)
         self.ff = FeedForward(d_model=d_model, dropout=dropout)
     
-    def forward(self, x, wu_tokens=None):
-        out_attn = self.attn(self.ln1((x)), wu_tokens=wu_tokens)
+    def forward(self, x, prefix_tokens=None):
+        out_attn = self.attn(self.ln1((x)), prefix_tokens=prefix_tokens)
         x = x + out_attn
         out = x + self.ff(self.ln2(x))
         return out
@@ -99,9 +99,9 @@ class TransformerEncoder(nn.Module):
         )
         self.norm = nn.LayerNorm(d_model)
 
-    def forward(self, x, wu_tokens=None):
+    def forward(self, x, prefix_tokens=None):
         for layer in self.layers:
-            x = layer(x, wu_tokens=wu_tokens)
+            x = layer(x, prefix_tokens=prefix_tokens)
         return self.norm(x)
     
 class PatchFM(nn.Module, PyTorchModelHubMixin): 
@@ -115,13 +115,13 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
 
         if revin_config_name == "CausalRevIN":
             self.revin = CausalRevIN(asinh=use_asinh)
-            self.wu_tokens = None
+            self.prefix_tokens = None
         elif revin_config_name == "RevIN":
             self.revin = RevIN(asinh=use_asinh)
-            self.wu_tokens = None
-        elif revin_config_name == "WURevIN":
-            self.wu_tokens = 8
-            self.revin = WURevIN(asinh=use_asinh, wu_tokens=self.wu_tokens)
+            self.prefix_tokens = None
+        elif revin_config_name == "PrefixRevIN":
+            self.prefix_tokens = 8
+            self.revin = PrefixRevIN(asinh=use_asinh, prefix_tokens=self.prefix_tokens)
         else:
             raise NotImplementedError(f"RevIN config '{revin_config_name}' not implemented.")
         
@@ -137,7 +137,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         x = self.revin(x, mode="norm")
         x = self.proj_embedding(x) # bs, pn, d_model
         x = self.dp(x)
-        x = self.transformer_encoder(x, wu_tokens=self.wu_tokens) # bs, pn, d_model
+        x = self.transformer_encoder(x, prefix_tokens=self.prefix_tokens) # bs, pn, d_model
         forecasting = self.proj_output(x)  # bs, pn, patch_len  
         forecasting = self.revin(forecasting, mode="denorm")
         forecasting = rearrange(forecasting, "b pn (pl q) -> b pn pl q", pl=self.patch_len, q=self.n_quantiles)
@@ -167,9 +167,9 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
     
 def get_model(revin_strategy, use_asinh, device='cpu'):
 
-    if revin_strategy=="WURevIN2": # ablation study for warm-up strategy replaced by naive during inference
-        print("Using WURevIN2 strategy for ablation study: warm-up replaced by naive (optimal) during inference.")
-        revin_strategy = "WURevIN"
+    if revin_strategy=="PrefixRevIN2": # ablation study for prefix strategy replaced by naive during inference
+        print("Using PrefixRevIN2 strategy for ablation study: prefix replaced by naive (optimal) during inference.")
+        revin_strategy = "PrefixRevIN"
         model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
         model.revin=RevIN(asinh=use_asinh)
 
