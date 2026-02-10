@@ -97,7 +97,6 @@ def main(config: DictConfig):
                 scorer.update(prediction, y, x)
 
         cur_results = scorer.compute()
-        print(f"Results for {test_name} dataset: {cur_results}")
         scorer.reset()
 
         if not os.path.exists("./results2"):
