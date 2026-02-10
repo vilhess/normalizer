@@ -94,10 +94,10 @@ def main(config: DictConfig):
                     print(f"Results for {test_name} dataset: {cur_results}")
                     scorer.reset()
 
-                    if not os.path.exists("./results"):
-                        os.makedirs("./results")
+                    if not os.path.exists("./results2"):
+                        os.makedirs("./results2")
 
-                    str_dir = f"./results/{config_model.revin_config_name}_{config_model.use_asinh}/{seq_len}"
+                    str_dir = f"./results2/{config_model.revin_config_name}_{config_model.use_asinh}/{seq_len}"
                     if not os.path.exists(str_dir):
                         os.makedirs(str_dir)
                         
