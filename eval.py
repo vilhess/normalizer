@@ -7,6 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import os
 
 from modules import get_model
+from modules_kvcache import get_causal_kv_model
 from scorerV2 import MetricScorer, save_results_json
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
@@ -64,8 +65,12 @@ def main(config: DictConfig):
     config_model.revin_config_name = revin_name
     config_model.use_asinh = use_asinh
 
-    model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, device=DEVICE)
-    
+    if revin_name=="CausalRevIN":
+        print(f"Using causal KV cache model for {revin_name}...")
+        model = get_causal_kv_model(use_asinh=use_asinh, device=DEVICE)
+    else:
+        model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, device=DEVICE)
+
     test_loaders = {name: torch.utils.data.DataLoader(
         dataset,
         batch_size=settings.batch_size,
