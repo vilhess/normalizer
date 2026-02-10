@@ -7,7 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import os
 
 from modules import get_model
-from scorer import MetricScorer, save_results_json
+from scorerV2 import MetricScorer, save_results_json
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -47,7 +47,7 @@ def main(config: DictConfig):
 
             elif name == "artificial":
                 print(f"Loading SyntheticTimeSeriesDataset for evaluation...")
-                artificial = SyntheticTimeSeriesDataset(seq_len=seq_len, target_len=eval_target_len, noise=True, n_samples=20)
+                artificial = SyntheticTimeSeriesDataset(seq_len=seq_len, target_len=eval_target_len, noise=True, n_samples=1000)
                 test_datasets["artificial"] = artificial
 
         print(f"Datasets ready.")
@@ -97,7 +97,7 @@ def main(config: DictConfig):
                     if not os.path.exists("./results"):
                         os.makedirs("./results")
 
-                    str_dir = f"./results/{config_model.model_name}_{config_model.revin_config_name}_{config_model.use_asinh}/{seq_len}"
+                    str_dir = f"./results/{config_model.revin_config_name}_{config_model.use_asinh}/{seq_len}"
                     if not os.path.exists(str_dir):
                         os.makedirs(str_dir)
                         

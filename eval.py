@@ -7,7 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import os
 
 from modules import get_model
-from scorer import MetricScorer, save_results_json
+from scorerV2 import MetricScorer, save_results_json
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,8 +37,7 @@ def main(config: DictConfig):
 
         if name == "utsd":
             print(f"Loading UTSD dataset for evaluation...")
-            utsd = UTSDataset(input_len=seq_len, output_len=eval_target_len, stride=128, flag="val", subset_name="UTSD-12G",
-                            cache_dir="/lustre/fsn1/projects/rech/ulm/uww31rp/huggingface/utsd12g")
+            utsd = UTSDataset(input_len=seq_len, output_len=eval_target_len, stride=128, flag="val", subset_name="UTSD-12G")
             test_datasets["utsd"] = utsd
 
         elif name == "gift_eval":
@@ -48,7 +47,7 @@ def main(config: DictConfig):
 
         elif name == "artificial":
             print(f"Loading SyntheticTimeSeriesDataset for evaluation...")
-            artificial = SyntheticTimeSeriesDataset(seq_len=seq_len, target_len=eval_target_len, noise=True, n_samples=20)
+            artificial = SyntheticTimeSeriesDataset(seq_len=seq_len, target_len=eval_target_len, noise=True, n_samples=1000)
             test_datasets["artificial"] = artificial
 
     print(f"Datasets ready.")
@@ -96,10 +95,10 @@ def main(config: DictConfig):
         print(f"Results for {test_name} dataset: {cur_results}")
         scorer.reset()
 
-        if not os.path.exists("./results"):
-            os.makedirs("./results")
+        if not os.path.exists("./results2"):
+            os.makedirs("./results2")
 
-        str_dir = f"./results/{config_model.model_name}_{config_model.revin_config_name}_{config_model.use_asinh}/{seq_len}"
+        str_dir = f"./results2/{config_model.revin_config_name}_{config_model.use_asinh}/{seq_len}"
         if not os.path.exists(str_dir):
             os.makedirs(str_dir)
             
