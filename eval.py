@@ -8,7 +8,7 @@ import os
 
 from modules import get_model
 from modules_kvcache import get_causal_kv_model
-from scorerV2 import MetricScorer, save_results_json
+from scorer import MetricScorer, save_results_json
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

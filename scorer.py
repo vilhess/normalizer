@@ -26,13 +26,13 @@ class MetricScorer:
         for end in range(self.patch_len, self.max_pred_len + 1, self.patch_len):
             pred_slice = preds[:, :end]
             target_slice = targets[:, :end]
-            mae = torch.mean(torch.abs(pred_slice - target_slice))
-            rmse = torch.mean(torch.sqrt(torch.mean((pred_slice - target_slice) ** 2, dim=1))) # previously : torch.sqrt(torch.mean((pred_slice - target_slice) ** 2))
+            mae = torch.mean(torch.abs(pred_slice - target_slice), dim=-1)
+            rmse = torch.sqrt(torch.mean((pred_slice - target_slice) ** 2, dim=-1))
             mase_score = mase(pred_slice, contexts, target_slice)
 
-            final_results[f"MAE_{end}"] = mae.item()
-            final_results[f"RMSE_{end}"] = rmse.item()
-            final_results[f"MASE_{end}"] = mase_score.item()
+            final_results[f"MAE_{end}"] = {i: mae[i].item() for i in range(mae.size(0))}
+            final_results[f"RMSE_{end}"] = {i: rmse[i].item() for i in range(rmse.size(0))}
+            final_results[f"MASE_{end}"] = {i: mase_score[i].item() for i in range(mase_score.size(0))}
         return final_results
 
     def reset(self):
@@ -52,7 +52,7 @@ def mase(forecast, context, ground_truth):
     print(f"prc removed: {100 * remove_idx.sum().item() / len(remove_idx):.2f}%")
     
     score_mase = numerator / divider
-    return score_mase.mean()
+    return score_mase
 
 def save_results_json(results, filename):
     with open(filename, "w") as f:

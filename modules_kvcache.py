@@ -213,7 +213,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         self.n_quantiles = len(self.quantiles)
 
         if revin_config_name == "CausalRevIN":
-            self.revin = CausalRevIN()
+            self.revin = CausalRevIN(use_asinh=use_asinh)
         else:
             raise NotImplementedError(f"RevIN config '{revin_config_name}' not implemented.")
         
