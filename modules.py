@@ -166,7 +166,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         return out
     
 def get_model(revin_strategy, use_asinh, device='cpu'):
-
+    
     if revin_strategy=="PrefixRevIN2": # ablation study for prefix strategy replaced by naive during inference
         print("Using PrefixRevIN2 strategy for ablation study: prefix replaced by naive (optimal) during inference.")
         revin_strategy = "PrefixRevIN"
