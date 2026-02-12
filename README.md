@@ -51,6 +51,12 @@ To reproduce all results from the paper, run:
 python loop_eval.py
 ```
 
+To preprocess the raw results run 
+```bash 
+cd processed_results
+python process_raw_results.py 
+```
+
 ⚠️ **Note:** Running all experiments is computationally expensive and may take a long time.  
 To run only a subset of experiments, modify the configuration files in the `conf/` folder (e.g., select specific datasets, models, or normalization methods).
 
