@@ -8,7 +8,7 @@ import os
 
 from modules import get_model
 from modules_kvcache import get_causal_kv_model
-from scorer import MetricScorer, save_results_json
+from scorer import MetricScorer, save_results_npz
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,7 +105,7 @@ def main(config: DictConfig):
                     if not os.path.exists(str_dir):
                         os.makedirs(str_dir)
                         
-                    save_results_json(cur_results, f"{str_dir}/results_{test_name}.json")
+                    save_results_npz(cur_results, f"{str_dir}/results_{test_name}.npz")
                     print(f"Results saved for {test_name} dataset.")
                 
                 print("Testing completed.")

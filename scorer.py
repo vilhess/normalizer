@@ -1,5 +1,5 @@
 import torch
-import json
+import numpy as np
 
 class MetricScorer:
     def __init__(self, max_pred_len=256, patch_len=8):
@@ -30,9 +30,9 @@ class MetricScorer:
             rmse = torch.sqrt(torch.mean((pred_slice - target_slice) ** 2, dim=-1))
             mase_score = mase(pred_slice, contexts, target_slice)
 
-            final_results[f"MAE_{end}"] = {i: mae[i].item() for i in range(mae.size(0))}
-            final_results[f"RMSE_{end}"] = {i: rmse[i].item() for i in range(rmse.size(0))}
-            final_results[f"MASE_{end}"] = {i: mase_score[i].item() for i in range(mase_score.size(0))}
+            final_results[f"MAE_{end}"] = mae.numpy().astype(np.float32) 
+            final_results[f"RMSE_{end}"] = rmse.numpy().astype(np.float32) 
+            final_results[f"MASE_{end}"] = mase_score.numpy().astype(np.float32)
         return final_results
 
     def reset(self):
@@ -54,6 +54,5 @@ def mase(forecast, context, ground_truth):
     score_mase = numerator / divider
     return score_mase
 
-def save_results_json(results, filename):
-    with open(filename, "w") as f:
-        json.dump(results, f)
+def save_results_npz(results, filename):
+    np.savez_compressed(filename, **results)
