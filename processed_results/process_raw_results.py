@@ -14,7 +14,7 @@ for model_name in os.listdir(root_dir):
                 results = np.load(os.path.join(seq_len_dir, dataset_results))
                 aggregated_results = {}
                 for key in results.keys():
-                    aggregated_results[key] = np.mean(results[key])
+                    aggregated_results[key] = np.mean(results[key])  
                 save_path = os.path.join(save_dir, model_name, seq_len)
                 os.makedirs(save_path, exist_ok=True)
                 np.savez_compressed(os.path.join(save_path, dataset_results), **aggregated_results)
