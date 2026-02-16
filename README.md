@@ -8,7 +8,7 @@ This repository contains the official code for the paper:
 
 ## Repository Structure
 
-- **`results/`**  
+- **`processed_results/`**  
   Contains the experimental results reported in the paper, organized by experiment in separate subfolders.
 
 - **`notebooks/`**  
@@ -78,5 +78,5 @@ Datasets and pretrained models are automatically downloaded at runtime using the
 
 ## Reproducibility Notes
 
-- Results in `results/` correspond to the experiments reported in the paper.
+- Results in `processed_results/` correspond to the experiments reported in the paper.
 - Configuration files in `conf/` fully specify each experimental setup.

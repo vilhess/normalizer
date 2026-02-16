@@ -44,14 +44,9 @@ class MetricScorer:
 def mase(forecast, context, ground_truth):
     numerator = torch.mean(torch.abs(forecast - ground_truth), dim=-1)
     divider = torch.mean(torch.abs(context[:, :-1] - context[:, 1:]), dim=-1)
-
-    remove_idx = divider < 1e-8
-    divider = divider[~remove_idx]
-    numerator = numerator[~remove_idx]
-
-    print(f"prc removed: {100 * remove_idx.sum().item() / len(remove_idx):.2f}%")
-    
+    # possibly nan if context has constant values, which would lead to division by zero. In that case, we set MASE to NaN
     score_mase = numerator / divider
+    score_mase = torch.where(divider == 0, torch.nan, score_mase)
     return score_mase
 
 def save_results_npz(results, filename):
