@@ -64,9 +64,7 @@ To run only a subset of experiments, modify the configuration files in the `conf
 
 ## Training Strategy
 
-The training strategy implemented in this repository is adapted from the PatchFM framework:
-
-https://github.com/vilhess/PatchFM/
+The training strategy will be soon implemented and added to the repository. It will include scripts and configuration files for training models with different normalization strategies on various datasets.
 
 ---
 
