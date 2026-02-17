@@ -7,7 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import os
 
 from modules import get_model
-from modules_kvcache import get_causal_kv_model
+from kvcache_modules import get_causal_kv_model, get_prefix_kv_model
 from scorer import MetricScorer, save_results_npz
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
@@ -68,6 +68,9 @@ def main(config: DictConfig):
     if revin_name=="CausalRevIN":
         print(f"Using causal KV cache model for {revin_name}...")
         model = get_causal_kv_model(use_asinh=use_asinh, device=DEVICE)
+    elif revin_name in ["PrefixRevIN"] and seq_len >= 256:
+        print(f"Using prefix KV cache model for {revin_name}...")
+        model = get_prefix_kv_model(use_asinh=use_asinh, device=DEVICE)
     else:
         model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, device=DEVICE)
 
