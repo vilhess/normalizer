@@ -19,8 +19,6 @@ for model_name in os.listdir(root_dir):
 # 2️⃣ Loop over sequence lengths FIRST
 # --------------------------------------------------
 for seq_len in seq_lens:
-    if seq_len!=str(1024):
-        continue
     print(f"\nProcessing seq_len = {seq_len}")
     seq_length = int(seq_len)
     
