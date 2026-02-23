@@ -7,7 +7,6 @@ from omegaconf import DictConfig, OmegaConf
 import os
 
 from modules import get_model
-from kvcache_modules import get_causal_kv_model, get_prefix_kv_model
 from scorer import MetricScorer, save_results_npz
 from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
@@ -53,25 +52,22 @@ def main(config: DictConfig):
 
         print(f"Datasets ready.")
 
-        for revin_name in ["CausalRevIN", "RevIN", "PrefixRevIN", "PrefixRevIN2"]:
+        for revin_name in ["CausalRevIN", "RevIN", "PrefixRevIN", "PrefixRevIN2", "NoRevIN"]:
             for use_asinh in [True, False]:
                 torch.manual_seed(0)
                 random.seed(0)
                 np.random.seed(0)
+
+                if revin_name == "NoRevIN" and use_asinh:
+                    print(f"Skipping NoRevIN with use_asinh=True as it is not applicable.")
+                    continue
 
                 print(f"Running experiment with {revin_name}, use_asinh={use_asinh}...")
 
                 config_model.revin_config_name = revin_name
                 config_model.use_asinh = use_asinh
 
-                if revin_name=="CausalRevIN":
-                    print(f"Using causal KV cache model for {revin_name}...")
-                    model = get_causal_kv_model(use_asinh=use_asinh, device=DEVICE)
-                elif revin_name in ["PrefixRevIN"] and seq_len >= 256:
-                    print(f"Using prefix KV cache model for {revin_name}...")
-                    model = get_prefix_kv_model(use_asinh=use_asinh, device=DEVICE)
-                else:
-                    model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, device=DEVICE)
+                model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, seq_len=seq_len, kv_cache_if_possible=True, device=DEVICE)
                 
                 test_loaders = {name: torch.utils.data.DataLoader(
                     dataset,
@@ -90,7 +86,7 @@ def main(config: DictConfig):
                         patch_len=config_model.patch_len
                     )
                     
-                    with torch.no_grad():
+                    with torch.inference_mode():
                         for i, batch in enumerate(tqdm.tqdm(test_loader)):
                             x, y = batch
                             x = x.to(DEVICE)

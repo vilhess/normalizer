@@ -1,2 +1,1 @@
-from kv_cache_modules.causal_kvcache import get_causal_kv_model
-from kv_cache_modules.prefix_kvcache import get_prefix_kv_model
+from kvcache_modules.kv_modules import get_kv_model

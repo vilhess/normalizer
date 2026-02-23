@@ -126,8 +126,13 @@ class PrefixRevIN(nn.Module):
         mean = x[:, :self.prefix_tokens, :].mean(dim=(-1, -2), keepdim=True)
         std = x[:, :self.prefix_tokens, :].std(dim=(-1, -2), keepdim=True) + self.eps
         return mean, std
-    
-    def _get_attn_mask(self, seq_len):
-        mask = torch.tril(torch.ones(seq_len, seq_len))
-        mask[:, :self.prefix_tokens] = 1
-        return mask
+
+class NoRevIN(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x, mode):
+        return x
+
+    def clear_cache(self):
+        pass

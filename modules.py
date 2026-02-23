@@ -3,7 +3,8 @@ import torch.nn as nn
 from rotary_embedding_torch import RotaryEmbedding
 from einops import rearrange
 from huggingface_hub import PyTorchModelHubMixin
-from normalizer import RevIN, CausalRevIN, PrefixRevIN
+from normalizer import RevIN, CausalRevIN, PrefixRevIN, NoRevIN
+from kvcache_modules import get_kv_model
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_dim, hid_dim, out_dim, dropout=0.):
@@ -122,6 +123,11 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         elif revin_config_name == "PrefixRevIN":
             self.prefix_tokens = 8
             self.revin = PrefixRevIN(asinh=use_asinh, prefix_tokens=self.prefix_tokens)
+        elif revin_config_name == "NoRevIN":
+            if use_asinh:
+                print("Warning: asinh transformation is not applied when using NoRevIN.")
+            self.prefix_tokens = None
+            self.revin = NoRevIN()
         else:
             raise NotImplementedError(f"RevIN config '{revin_config_name}' not implemented.")
         
@@ -165,7 +171,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         out = self.forward(x)
         return out
     
-def get_model(revin_strategy, use_asinh, device='cpu'):
+def get_model(revin_strategy, use_asinh, seq_len, kv_cache_if_possible=True, device='cpu'):
     
     if revin_strategy=="PrefixRevIN2": # ablation study for prefix strategy replaced by naive during inference
         print("Using PrefixRevIN2 strategy for ablation study: prefix replaced by naive (optimal) during inference.")
@@ -173,8 +179,29 @@ def get_model(revin_strategy, use_asinh, device='cpu'):
         model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
         model.revin=RevIN(asinh=use_asinh)
 
-    else:
+    elif revin_strategy=="RevIN":
         model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
+    
+    elif revin_strategy=="CausalRevIN":
+        if kv_cache_if_possible:
+            print("Using CausalRevIN with KV caching for inference.")
+            model = get_kv_model(revin_strategy=revin_strategy, use_asinh=use_asinh)
+        else:    
+            model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
+
+    elif revin_strategy=="PrefixRevIN":
+        if kv_cache_if_possible and seq_len >= 256:
+            print("Using PrefixRevIN with KV caching for inference.")
+            model = get_kv_model(revin_strategy=revin_strategy, use_asinh=use_asinh)
+        else:
+            model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}").eval()
+    
+    elif revin_strategy=="NoRevIN":
+        if kv_cache_if_possible:
+            print("Using NoRevIN with KV caching for inference.")
+            model = get_kv_model(revin_strategy=revin_strategy, use_asinh=use_asinh)
+        else:
+            model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}").eval()
         
     model.to(device)
     return model

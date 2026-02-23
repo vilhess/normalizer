@@ -31,6 +31,8 @@ for seq_len in seq_lens:
     # 3️⃣ Now loop over models
     # --------------------------------------------------
     for model_name in os.listdir(root_dir):
+        if model_name!="NoRevIN_False":
+            continue
 
         seq_len_dir = os.path.join(root_dir, model_name, seq_len)
         if not os.path.exists(seq_len_dir):
