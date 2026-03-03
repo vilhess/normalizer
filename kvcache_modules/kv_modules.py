@@ -139,6 +139,65 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
 
         self.clear_cache()
         return predictions
+
+    @torch.inference_mode()
+    def auto_regressive_quantile_decoding(self, x, target_len=None):
+        q = torch.tensor(self.quantiles, device=x.device)
+
+        if target_len is None:
+            target_len=self.patch_len
+        x = rearrange(x, "b (pn pl) -> b pn pl", pl=self.patch_len)
+
+        rollouts = -(-target_len // self.patch_len)  # ceil division
+        predictions = []
+
+        # First Forward pass
+        x = self.revin(x, mode="norm")
+        x = self.proj_embedding(x)
+        
+        x = self.transformer_encoder(x)
+        
+        x = x[:, -1:, :]  # Keep only the last patch for autoregressive forecasting
+        forecasting = self.proj_output(x)
+        forecasting = self.revin(forecasting, mode="denorm")
+        # Reshape to (bs, patch_num, patch_len, n_quantiles)
+        forecasting = rearrange(
+            forecasting, "b 1 (pl q) -> b 1 pl q", 
+            pl=self.patch_len, q=self.n_quantiles
+        )   
+        predictions.append(forecasting[:, 0, :, :].detach())
+        x = forecasting.permute(0, 3, 1, 2).reshape(forecasting.size(0)*self.n_quantiles, 1, self.patch_len)
+
+        for _ in range(rollouts-1):
+
+            # Forward pass
+            x = self.revin(x, mode="norm")
+            x = self.proj_embedding(x)
+            x = self.transformer_encoder(x)
+            x = x[:, -1:, :]  # Keep only the last patch for autoregressive forecasting
+            forecasting = self.proj_output(x)
+            forecasting = self.revin(forecasting, mode="denorm")
+            # Reshape to (bs, patch_num, patch_len, n_quantiles)
+            forecasting = rearrange(
+                forecasting, "b 1 (pl q) -> b 1 pl q", 
+                pl=self.patch_len, q=self.n_quantiles
+            )
+            forecasting = rearrange(
+                forecasting, "(b q) 1 pl h -> b q 1 pl h",
+                b=forecasting.size(0)//self.n_quantiles, q=self.n_quantiles
+            ).permute(0, 2, 3, 1, 4)
+            forecasting = torch.flatten(forecasting, start_dim=-2)
+
+            forecasting = torch.quantile(forecasting, q=q, dim=-1)
+            x = forecasting.permute(1, 0, 2, 3).reshape(-1, 1, self.patch_len)
+            predictions.append(forecasting.permute(1, 2, 3, 0)[:, 0].detach())
+
+        predictions = torch.cat(predictions, dim=1)
+        predictions = predictions[:, :target_len]
+        predictions_median = predictions[:, :, 4]
+
+        self.clear_cache()
+        return predictions_median, predictions
         
     def clear_cache(self):
         self.revin.clear_cache()    

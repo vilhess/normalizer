@@ -43,6 +43,9 @@ class CausalMultiHeadAttention(nn.Module):
         if self.k_cache is not None and self.v_cache is not None:
             offset += self.k_cache.size(2)
             is_causal = False
+            factor = q.size(0) // self.k_cache.size(0)
+            self.k_cache = torch.repeat_interleave(self.k_cache, repeats=factor, dim=0)
+            self.v_cache = torch.repeat_interleave(self.v_cache, repeats=factor, dim=0)
             k = torch.cat([self.k_cache, k], dim=2)
             v = torch.cat([self.v_cache, v], dim=2)
 
@@ -106,6 +109,9 @@ class PrefixMultiHeadAttention(nn.Module):
         if self.k_cache is not None and self.v_cache is not None:
             offset += self.k_cache.size(2)
             mask = None
+            factor = q.size(0) // self.k_cache.size(0)
+            self.k_cache = torch.repeat_interleave(self.k_cache, repeats=factor, dim=0)
+            self.v_cache = torch.repeat_interleave(self.v_cache, repeats=factor, dim=0)
             k = torch.cat([self.k_cache, k], dim=2)
             v = torch.cat([self.v_cache, v], dim=2)
 
@@ -116,7 +122,6 @@ class PrefixMultiHeadAttention(nn.Module):
         k = self.rope.rotate_queries_or_keys(k)
 
         values = nn.functional.scaled_dot_product_attention(q, k, v, is_causal=False, attn_mask=mask)
-
         values = values.transpose(1, 2).reshape(bs, -1, dim)
         values = self.out_proj(values)
         return values

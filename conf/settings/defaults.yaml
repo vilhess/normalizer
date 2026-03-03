@@ -1,3 +1,6 @@
 batch_size: 512
 num_workers: 10
 pin_memory: True
+
+kv_cache_if_possible: True
+quantiles_forecasting: False # whether to use quantiles forecasting thus computing SQL. (No KV-Cache possible so much slower)

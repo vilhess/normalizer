@@ -53,11 +53,14 @@ class CausalRevIN(nn.Module):
         counts = counts - nan_counts
     
         if self.cached_counts is not None:
+            factor = B//self.cached_counts.size(0)
+            self.cached_counts = self.cached_counts.repeat_interleave(factor, dim=0)
             counts += self.cached_counts
         self.cached_counts = counts[:, -1:, :]
 
         cumsum_x = torch.cumsum(x.nansum(dim=-1, keepdim=True), dim=1)
         if self.cached_cumsum_x is not None:
+            self.cached_cumsum_x = self.cached_cumsum_x.repeat_interleave(factor, dim=0)
             cumsum_x += self.cached_cumsum_x
         self.cached_cumsum_x = cumsum_x[:, -1:, :]
 
@@ -66,6 +69,7 @@ class CausalRevIN(nn.Module):
 
         cumsum_x2 = torch.cumsum((x**2).nansum(dim=-1, keepdim=True), dim=1)
         if self.cached_cumsum_x2 is not None:
+            self.cached_cumsum_x2 = self.cached_cumsum_x2.repeat_interleave(factor, dim=0)
             cumsum_x2 += self.cached_cumsum_x2
         self.cached_cumsum_x2 = cumsum_x2[:, -1:, :]
 
@@ -78,6 +82,8 @@ class CausalRevIN(nn.Module):
         self.cached_cumsum_x = None
         self.cached_cumsum_x2 = None
         self.cached_counts = None
+        self.cached_mean = None
+        self.cached_std = None
 
 class PrefixRevIN(nn.Module):
     def __init__(self, eps=1e-5, use_asinh=True, prefix_tokens=8):
@@ -94,6 +100,9 @@ class PrefixRevIN(nn.Module):
         if mode == "norm":
 
             if self.cached_mean is not None and self.cached_std is not None:
+                factor = x.size(0) // self.cached_mean.size(0)
+                self.cached_mean = self.cached_mean.repeat_interleave(factor, dim=0)
+                self.cached_std = self.cached_std.repeat_interleave(factor, dim=0)
                 mean, std = self.cached_mean, self.cached_std
             else:
                 mean, std = self._get_statistics(x)

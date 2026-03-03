@@ -136,7 +136,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         self.transformer_encoder = TransformerEncoder(d_model=d_model, n_heads=n_heads, n_layers=n_layers_encoder, dropout=dropout)
         self.proj_output = ResidualBlock(in_dim=d_model, hid_dim=2*d_model, out_dim=patch_len*self.n_quantiles, dropout=dropout)
 
-    def forward(self, x): 
+    def forward(self, x, quantiles=False): 
 
         bs, ws = x.size()
         x = rearrange(x, "b (pn pl) -> b pn pl", pl=self.patch_len)  # Reshape to (bs, patch_num, patch_len)
@@ -148,7 +148,10 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         forecasting = self.revin(forecasting, mode="denorm")
         forecasting = rearrange(forecasting, "b pn (pl q) -> b pn pl q", pl=self.patch_len, q=self.n_quantiles)
 
-        return forecasting[:, :, :, self.quantiles.index(0.5)]  # Return median predictions only here
+        if quantiles:
+            return forecasting  # Return all quantiles
+        else:
+            return forecasting[:, :, :, self.quantiles.index(0.5)]  # Return median predictions only here
         
     @torch.inference_mode()
     def forecast(self, x, target_len=None):
@@ -158,20 +161,73 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         preds = []
         x_input = x
         for _ in range(n_patches):
-            out = self.forward(x_input)
+            out = self.forward(x_input, quantiles=False)
             next_patch = out[:, -1:, :]  # Get the last predicted patch
             preds.append(next_patch)
             x_input = torch.cat([x_input, rearrange(next_patch, "b 1 n -> b n")], dim=1)
         preds = torch.cat(preds, dim=1)
         preds = preds.flatten(1, -1)
+        preds = preds[:, :target_len]  # Trim to target length if necessary
         return preds
     
     @torch.inference_mode()
     def forecast_causal(self, x):
-        out = self.forward(x)
+        out = self.forward(x, quantiles=False)
         return out
     
-def get_model(revin_strategy, use_asinh, seq_len, kv_cache_if_possible=True, device='cpu'):
+    @torch.inference_mode()
+    def auto_regressive_quantile_decoding(self, x, target_len=None): 
+
+        if target_len is None:
+            target_len = self.patch_len
+
+        assert x.ndim in (1, 2), f"Input dimension must be 1D (time) or 2D (batch, time), got {x.ndim}D."
+        bs, ws = x.size()
+
+        context = x.clone()  
+
+        rollouts = -(-target_len // self.patch_len)  # ceil division
+        predictions = []
+
+        forecasting = self.forward(x, quantiles=True)  # Get all quantiles for the initial context
+        forecasting = forecasting[:, -1, :, :]  # Keep only the last patch for autoregressive forecasting
+
+        context_expanded = torch.repeat_interleave(context.unsqueeze(-1), repeats=self.n_quantiles, dim=-1) # batch x ws x n_quantiles
+        base_context_expanded = torch.cat((context_expanded, forecasting), dim=1) # batch x ws+patch_size x n_quantiles
+        context_expanded = base_context_expanded.permute(0, 2, 1).reshape(bs*self.n_quantiles, base_context_expanded.size(1))  
+
+        x = context_expanded
+        q = torch.tensor(self.quantiles, device=x.device)
+
+        predictions.append(forecasting)
+
+        for _ in range(rollouts-1):
+                
+            # Forward pass
+            forecasting = self.forward(x, quantiles=True)  # batch*n_quantiles x patch_num x patch_len x n_quantiles
+            forecasting = forecasting[:, -1, :, :]  # batch*n_quantiles x patch_len x n_quantiles
+
+            forecasting = rearrange(
+                forecasting, "(b q) pl h -> b q pl h", 
+                q=self.n_quantiles
+            )
+            forecasting = forecasting.permute(0, 2, 1, 3).flatten(start_dim=-2)  # batch x patch_len x n_quantiles**2
+            forecasting = torch.quantile(forecasting, q, dim=-1) # n_quantiles x batch x patch_len
+            forecasting = forecasting.permute(1, 2, 0) # batch x patch_len x n_quantiles
+
+            base_context_expanded = torch.cat((base_context_expanded, forecasting), dim=1) # # batch x ws+iter*patch_size x n_quantiles
+            context_expanded = base_context_expanded.permute(0, 2, 1).reshape(bs*self.n_quantiles, base_context_expanded.size(1))       
+
+            x = context_expanded
+            predictions.append(forecasting)
+
+        pred_quantiles = torch.cat(predictions, dim=1)
+        pred_quantiles = pred_quantiles[:, :target_len, :]
+        pred_median = pred_quantiles[:, :, 4]
+
+        return pred_median, pred_quantiles
+    
+def get_model(revin_strategy, use_asinh, seq_len, kv_cache_if_possible=True, quantiles_forecasting=False, device='cpu'):
     
     if revin_strategy=="PrefixRevIN2": # ablation study for prefix strategy replaced by naive during inference
         print("Using PrefixRevIN2 strategy for ablation study: prefix replaced by naive (optimal) during inference.")
@@ -202,6 +258,11 @@ def get_model(revin_strategy, use_asinh, seq_len, kv_cache_if_possible=True, dev
             model = get_kv_model(revin_strategy=revin_strategy, use_asinh=use_asinh)
         else:
             model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}").eval()
+
+    if quantiles_forecasting:
+        print("Quantiles forecasting enabled: model will return all quantiles and compute SQL metric during evaluation.")
+        print("The batch size will be multiplied by the number of quantiles (9). Make sure to adjust it accordingly to avoid OOM errors.")
+        model.forecast = model.auto_regressive_quantile_decoding
         
     model.to(device)
     return model
