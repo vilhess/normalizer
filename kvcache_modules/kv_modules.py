@@ -105,43 +105,6 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
 
     @torch.inference_mode()
     def forecast(self, x, target_len=None):
-        if target_len is None:
-            target_len=self.patch_len
-        x = rearrange(x, "b (pn pl) -> b pn pl", pl=self.patch_len)
-
-        rollouts = -(-target_len // self.patch_len)  # ceil division
-        predictions = []
-        for _ in range(rollouts):
-                
-            # Forward pass
-            x = self.revin(x, mode="norm")
-            x = self.proj_embedding(x)
-            x = self.transformer_encoder(x)
-            x = x[:, -1:, :]  # Keep only the last patch for autoregressive forecasting
-            forecasting = self.proj_output(x)
-            forecasting = self.revin(forecasting, mode="denorm")
-
-            # Reshape to (bs, patch_num, patch_len, n_quantiles)
-            forecasting = rearrange(
-                forecasting, "b 1 (pl q) -> b 1 pl q", 
-                pl=self.patch_len, q=self.n_quantiles
-            )
-            
-            # Take median quantile (index 4)
-            patch_median = forecasting[:, -1:, :, 4].detach()
-            predictions.append(patch_median[:, 0, :])
-
-            # Append median patch for next rollout
-            x = patch_median.clone()
-        
-        predictions = torch.cat(predictions, dim=1)
-        predictions = predictions[:, :target_len]
-
-        self.clear_cache()
-        return predictions
-
-    @torch.inference_mode()
-    def auto_regressive_quantile_decoding(self, x, target_len=None):
         q = torch.tensor(self.quantiles, device=x.device)
 
         if target_len is None:

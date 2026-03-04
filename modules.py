@@ -152,23 +152,6 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
             return forecasting  # Return all quantiles
         else:
             return forecasting[:, :, :, self.quantiles.index(0.5)]  # Return median predictions only here
-        
-    @torch.inference_mode()
-    def forecast(self, x, target_len=None):
-        if target_len is None:
-            target_len = self.patch_len
-        n_patches = max(target_len // self.patch_len, 1)
-        preds = []
-        x_input = x
-        for _ in range(n_patches):
-            out = self.forward(x_input, quantiles=False)
-            next_patch = out[:, -1:, :]  # Get the last predicted patch
-            preds.append(next_patch)
-            x_input = torch.cat([x_input, rearrange(next_patch, "b 1 n -> b n")], dim=1)
-        preds = torch.cat(preds, dim=1)
-        preds = preds.flatten(1, -1)
-        preds = preds[:, :target_len]  # Trim to target length if necessary
-        return preds
     
     @torch.inference_mode()
     def forecast_causal(self, x):
@@ -176,7 +159,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         return out
     
     @torch.inference_mode()
-    def auto_regressive_quantile_decoding(self, x, target_len=None): 
+    def forecast(self, x, target_len=None): 
 
         if target_len is None:
             target_len = self.patch_len
@@ -227,7 +210,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
 
         return pred_median, pred_quantiles
     
-def get_model(revin_strategy, use_asinh, seq_len, kv_cache_if_possible=True, quantiles_forecasting=False, device='cpu'):
+def get_model(revin_strategy, use_asinh, seq_len, kv_cache_if_possible=True, device='cpu'):
     
     if revin_strategy=="PrefixRevIN2": # ablation study for prefix strategy replaced by naive during inference
         print("Using PrefixRevIN2 strategy for ablation study: prefix replaced by naive (optimal) during inference.")
@@ -258,11 +241,6 @@ def get_model(revin_strategy, use_asinh, seq_len, kv_cache_if_possible=True, qua
             model = get_kv_model(revin_strategy=revin_strategy, use_asinh=use_asinh)
         else:
             model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}").eval()
-
-    if quantiles_forecasting:
-        print("Quantiles forecasting enabled: model will return all quantiles and compute SQL metric during evaluation.")
-        print("The batch size will be multiplied by the number of quantiles (9). Make sure to adjust it accordingly to avoid OOM errors.")
-        model.forecast = model.auto_regressive_quantile_decoding
         
     model.to(device)
     return model

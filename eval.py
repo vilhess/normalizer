@@ -59,16 +59,15 @@ def main(config: DictConfig):
     revin_name = config_model.normalizer_name
     use_asinh = config_model.use_asinh
 
-    quantiles_forecasting = settings.quantiles_forecasting
     kv_cache_if_possible = settings.kv_cache_if_possible
 
-    print(f"Running experiment with {revin_name}, use_asinh={use_asinh}, quantiles_forecasting={quantiles_forecasting}, kv_cache_if_possible={kv_cache_if_possible}.")
+    print(f"Running experiment with {revin_name}, use_asinh={use_asinh}, kv_cache_if_possible={kv_cache_if_possible}.")
 
     config_model.revin_config_name = revin_name
     config_model.use_asinh = use_asinh
 
-    model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, seq_len=seq_len, kv_cache_if_possible=kv_cache_if_possible, 
-                      quantiles_forecasting=quantiles_forecasting, device=DEVICE)
+    model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, seq_len=seq_len, 
+                        kv_cache_if_possible=kv_cache_if_possible, device=DEVICE)
 
     test_loaders = {name: torch.utils.data.DataLoader(
         dataset,
@@ -84,9 +83,8 @@ def main(config: DictConfig):
         
         scorer = MetricScorer(
             max_pred_len=eval_target_len,
-            patch_len=config_model.patch_len, 
-            quantiles_forecasting=quantiles_forecasting
-        )
+            patch_len=config_model.patch_len                    
+            )
         
         with torch.inference_mode():
             for i, batch in enumerate(tqdm.tqdm(test_loader)):

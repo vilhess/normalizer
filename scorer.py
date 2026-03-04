@@ -2,10 +2,9 @@ import torch
 import numpy as np
 
 class MetricScorer:
-    def __init__(self, max_pred_len=256, patch_len=8, quantiles_forecasting=False):
+    def __init__(self, max_pred_len=256, patch_len=8):
         self.max_pred_len = max_pred_len
         self.patch_len = patch_len
-        self.quantiles_forecasting = quantiles_forecasting
 
         self.predictions = []
         self.quantiles_predictions = []
@@ -14,11 +13,8 @@ class MetricScorer:
 
     def update(self, preds, targets, contexts):
 
-        if self.quantiles_forecasting:
-            self.predictions.append(preds[0])
-            self.quantiles_predictions.append(preds[1])
-        else:
-            self.predictions.append(preds)
+        self.predictions.append(preds[0])
+        self.quantiles_predictions.append(preds[1])
 
         self.targets.append(targets)
         self.contexts.append(contexts)
@@ -28,8 +24,7 @@ class MetricScorer:
         final_results = {}
 
         preds = torch.cat(self.predictions, dim=0).detach().cpu()
-        if self.quantiles_forecasting:
-            quantiles_preds = torch.cat(self.quantiles_predictions, dim=0).detach().cpu()
+        quantiles_preds = torch.cat(self.quantiles_predictions, dim=0).detach().cpu()
         targets = torch.cat(self.targets, dim=0).detach().cpu()
         contexts = torch.cat(self.contexts, dim=0).detach().cpu()
         
@@ -40,15 +35,13 @@ class MetricScorer:
             rmse = torch.sqrt(torch.mean((pred_slice - target_slice) ** 2, dim=-1))
             mase_score = mase(pred_slice, contexts, target_slice)
 
-            if self.quantiles_forecasting:
-                quant_slice = quantiles_preds[:, :end]
-                sql_score = sql(quant_slice, contexts, target_slice)
+            quant_slice = quantiles_preds[:, :end]
+            sql_score = sql(quant_slice, contexts, target_slice)
 
             final_results[f"MAE_{end}"] = mae.numpy().astype(np.float32) 
             final_results[f"RMSE_{end}"] = rmse.numpy().astype(np.float32) 
             final_results[f"MASE_{end}"] = mase_score.numpy().astype(np.float32)
-            if self.quantiles_forecasting:
-                final_results[f"SQL_{end}"] = sql_score.numpy().astype(np.float32) # new metric
+            final_results[f"SQL_{end}"] = sql_score.numpy().astype(np.float32) # new metric
         return final_results
 
     def reset(self):
