@@ -9,3 +9,6 @@ outputs/
 logs/
 raw_results/
 z.ipynb
+
+raw_results2/
+processed_results2/
