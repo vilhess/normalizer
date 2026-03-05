@@ -84,11 +84,11 @@ An alternative approach is **autoregressive multi-quantile decoding**, as propos
 
 <div style="display: flex; gap: 10px; align-items: flex-start;">
   <div>
-    <img src="assets/classic_forecast_animation.gif" alt="Classic Autoregressive Inference" width="450">
+    <img src="notebooks/figures/autoregressive_classic_vs_quantildedecoding/classic_forecast_animation.gif" alt="Classic Autoregressive Inference" width="450">
     <p style="text-align:center;">Classic Autoregressive Inference</p>
   </div>
   <div>
-    <img src="assets/quantile_forecast_animation.gif" alt="Autoregressive Multi-Quantile Decoding" width="450">
+    <img src="notebooks/figures/autoregressive_classic_vs_quantildedecoding/quantile_forecast_animation.gif" alt="Autoregressive Multi-Quantile Decoding" width="450">
     <p style="text-align:center;">Autoregressive Multi-Quantile Decoding</p>
   </div>
 </div>
