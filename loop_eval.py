@@ -1,16 +1,18 @@
-import torch 
-import random 
-import numpy as np
+import os
+import random
+
 import hydra
+import numpy as np
+import torch
 import tqdm
 from omegaconf import DictConfig, OmegaConf
-import os
 
+from dataset import GiftEval, SyntheticTimeSeriesDataset, UTSDataset
 from modules import get_model
 from scorer import MetricScorer, save_results_npz
-from dataset import UTSDataset, GiftEval, SyntheticTimeSeriesDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(config: DictConfig):
@@ -38,29 +40,53 @@ def main(config: DictConfig):
 
             if name == "utsd":
                 print(f"Loading UTSD dataset for evaluation...")
-                utsd = UTSDataset(input_len=seq_len, output_len=eval_target_len, stride=128, flag="val", subset_name="UTSD-12G")
+                utsd = UTSDataset(
+                    input_len=seq_len,
+                    output_len=eval_target_len,
+                    stride=128,
+                    flag="val",
+                    subset_name="UTSD-12G",
+                )
                 test_datasets["utsd"] = utsd
 
             elif name == "gift_eval":
                 print(f"Loading GiftEval_eval dataset for evaluation...")
-                gift_eval = GiftEval(path="data/", input_len=seq_len, output_len=eval_target_len, stride=16)
+                gift_eval = GiftEval(
+                    path="data/",
+                    input_len=seq_len,
+                    output_len=eval_target_len,
+                    stride=16,
+                )
                 test_datasets["gift_eval"] = gift_eval
 
             elif name == "artificial":
                 print(f"Loading SyntheticTimeSeriesDataset for evaluation...")
-                artificial = SyntheticTimeSeriesDataset(seq_len=seq_len, target_len=eval_target_len, noise=True, n_samples=1000)
+                artificial = SyntheticTimeSeriesDataset(
+                    seq_len=seq_len,
+                    target_len=eval_target_len,
+                    noise=True,
+                    n_samples=1000,
+                )
                 test_datasets["artificial"] = artificial
 
         print(f"Datasets ready.")
 
-        for revin_name in ["CausalRevIN", "RevIN", "PrefixRevIN", "PrefixRevIN2", "NoRevIN"]:
+        for revin_name in [
+            "CausalRevIN",
+            "RevIN",
+            "PrefixRevIN",
+            "PrefixRevIN2",
+            "NoRevIN",
+        ]:
             for use_asinh in [True, False]:
                 torch.manual_seed(0)
                 random.seed(0)
                 np.random.seed(0)
 
                 if revin_name == "NoRevIN" and use_asinh:
-                    print(f"Skipping NoRevIN with use_asinh=True as it is not applicable.")
+                    print(
+                        f"Skipping NoRevIN with use_asinh=True as it is not applicable."
+                    )
                     continue
 
                 print(f"Running experiment with {revin_name}, use_asinh={use_asinh}...")
@@ -68,32 +94,39 @@ def main(config: DictConfig):
                 config_model.revin_config_name = revin_name
                 config_model.use_asinh = use_asinh
 
-                model = get_model(revin_strategy=revin_name, use_asinh=use_asinh, seq_len=seq_len, 
-                                  kv_cache_if_possible=kv_cache_if_possible, device=DEVICE)
-                
-                test_loaders = {name: torch.utils.data.DataLoader(
-                    dataset,
-                    batch_size=settings.batch_size,
-                    shuffle=False,
-                    num_workers=settings.num_workers,
-                    pin_memory=settings.pin_memory
-                ) for name, dataset in test_datasets.items()}
+                model = get_model(
+                    revin_strategy=revin_name,
+                    use_asinh=use_asinh,
+                    seq_len=seq_len,
+                    kv_cache_if_possible=kv_cache_if_possible,
+                    device=DEVICE,
+                )
+
+                test_loaders = {
+                    name: torch.utils.data.DataLoader(
+                        dataset,
+                        batch_size=settings.batch_size,
+                        shuffle=False,
+                        num_workers=settings.num_workers,
+                        pin_memory=settings.pin_memory,
+                    )
+                    for name, dataset in test_datasets.items()
+                }
 
                 print("Starting testing...")
                 for test_name, test_loader in test_loaders.items():
                     print(f"Testing on {test_name} dataset...")
-                    
+
                     scorer = MetricScorer(
-                        max_pred_len=eval_target_len,
-                        patch_len=config_model.patch_len                    
-                        )
-                    
+                        max_pred_len=eval_target_len, patch_len=config_model.patch_len
+                    )
+
                     with torch.inference_mode():
                         for i, batch in enumerate(tqdm.tqdm(test_loader)):
                             x, y = batch
                             x = x.to(DEVICE)
                             y = y.to(DEVICE)
-                            prediction = model.forecast(x, target_len=y.size(1))  
+                            prediction = model.forecast(x, target_len=y.size(1))
                             scorer.update(prediction, y, x)
 
                     cur_results = scorer.compute()
@@ -105,11 +138,12 @@ def main(config: DictConfig):
                     str_dir = f"./raw_results/{config_model.revin_config_name}_{config_model.use_asinh}/{seq_len}"
                     if not os.path.exists(str_dir):
                         os.makedirs(str_dir)
-                        
+
                     save_results_npz(cur_results, f"{str_dir}/results_{test_name}.npz")
                     print(f"Results saved for {test_name} dataset.")
-                
+
                 print("Testing completed.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

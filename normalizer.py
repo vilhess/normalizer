@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class RevIN(nn.Module):
     def __init__(self, eps=1e-5, asinh=True):
         super().__init__()
@@ -20,12 +21,13 @@ class RevIN(nn.Module):
                 out = torch.asinh(out)
 
         elif mode == "denorm":
-            assert self.cached_mean is not None and self.cached_std is not None, \
-                "Call forward(..., 'norm') before 'denorm'"
+            assert (
+                self.cached_mean is not None and self.cached_std is not None
+            ), "Call forward(..., 'norm') before 'denorm'"
             if self.asinh:
                 x = torch.sinh(x)
             out = x * self.cached_std + self.cached_mean
-            
+
         else:
             raise NotImplementedError(f"Mode '{mode}' not implemented.")
         return out
@@ -34,7 +36,8 @@ class RevIN(nn.Module):
         mean = x.mean(dim=(-1, -2), keepdim=True)
         std = x.std(dim=(-1, -2), keepdim=True) + self.eps
         return mean, std
-    
+
+
 class CausalRevIN(nn.Module):
     def __init__(self, eps=1e-5, asinh=True):
         super().__init__()
@@ -57,8 +60,9 @@ class CausalRevIN(nn.Module):
                 out = torch.asinh(out)
 
         elif mode == "denorm":
-            assert self.cached_mean is not None and self.cached_std is not None, \
-                "Call forward(..., 'norm') before 'denorm'"
+            assert (
+                self.cached_mean is not None and self.cached_std is not None
+            ), "Call forward(..., 'norm') before 'denorm'"
             if self.asinh:
                 x64 = torch.sinh(x64)
             out = x64 * self.cached_std + self.cached_mean
@@ -71,13 +75,13 @@ class CausalRevIN(nn.Module):
 
     def _get_statistics(self, x):
         """
-        Numerically stable mean and variance computation using 
+        Numerically stable mean and variance computation using
         incremental mean and variance along the patch dimension.
         x: (B, P, L) float64
         Returns: mean, std (both (B, P, 1))
         """
         B, P, L = x.shape
-        counts = torch.arange(1, P+1, device=x.device).view(1, P, 1) * L
+        counts = torch.arange(1, P + 1, device=x.device).view(1, P, 1) * L
 
         # Incrementally compute mean
         cumsum_x = torch.cumsum(x.sum(dim=-1, keepdim=True), dim=1)
@@ -91,6 +95,7 @@ class CausalRevIN(nn.Module):
         std = torch.sqrt(var + self.eps)
 
         return mean, std
+
 
 class PrefixRevIN(nn.Module):
     def __init__(self, eps=1e-5, asinh=True, prefix_tokens=8):
@@ -112,20 +117,22 @@ class PrefixRevIN(nn.Module):
                 out = torch.asinh(out)
 
         elif mode == "denorm":
-            assert self.cached_mean is not None and self.cached_std is not None, \
-                "Call forward(..., 'norm') before 'denorm'"
+            assert (
+                self.cached_mean is not None and self.cached_std is not None
+            ), "Call forward(..., 'norm') before 'denorm'"
             if self.asinh:
                 x = torch.sinh(x)
             out = x * self.cached_std + self.cached_mean
-            
+
         else:
             raise NotImplementedError(f"Mode '{mode}' not implemented.")
         return out
 
     def _get_statistics(self, x):
-        mean = x[:, :self.prefix_tokens, :].mean(dim=(-1, -2), keepdim=True)
-        std = x[:, :self.prefix_tokens, :].std(dim=(-1, -2), keepdim=True) + self.eps
+        mean = x[:, : self.prefix_tokens, :].mean(dim=(-1, -2), keepdim=True)
+        std = x[:, : self.prefix_tokens, :].std(dim=(-1, -2), keepdim=True) + self.eps
         return mean, std
+
 
 class NoRevIN(nn.Module):
     def __init__(self):

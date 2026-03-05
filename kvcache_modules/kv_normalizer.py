@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class CausalRevIN(nn.Module):
     def __init__(self, eps=1e-5, use_asinh=True):
         super().__init__()
@@ -20,14 +21,18 @@ class CausalRevIN(nn.Module):
 
         if mode == "norm":
             mean, std = self._get_statistics(x64)
-            self.cached_mean, self.cached_std = mean[:, -1:].detach(), std[:, -1:].detach()
+            self.cached_mean, self.cached_std = (
+                mean[:, -1:].detach(),
+                std[:, -1:].detach(),
+            )
             out = (x64 - mean) / std
             if self.use_asinh:
                 out = torch.asinh(out)
 
         elif mode == "denorm":
-            assert self.cached_mean is not None and self.cached_std is not None, \
-                "Call forward(..., 'norm') before 'denorm'"
+            assert (
+                self.cached_mean is not None and self.cached_std is not None
+            ), "Call forward(..., 'norm') before 'denorm'"
             if self.use_asinh:
                 x64 = torch.sinh(x64)
             out = x64 * self.cached_std + self.cached_mean
@@ -39,7 +44,7 @@ class CausalRevIN(nn.Module):
 
     def _get_statistics(self, x):
         """
-        Numerically stable mean and variance computation using 
+        Numerically stable mean and variance computation using
         incremental mean and variance along the patch dimension.
         x: (B, P, L) float64
         Returns: mean, std (both (B, P, 1))
@@ -49,11 +54,13 @@ class CausalRevIN(nn.Module):
         nan_counts = torch.isnan(x).sum(-1, keepdim=True)
         nan_counts = torch.cumsum(nan_counts, dim=1)
 
-        counts = torch.arange(1, P+1, device=x.device).view(1, P, 1).repeat(B, 1, 1) * L
+        counts = (
+            torch.arange(1, P + 1, device=x.device).view(1, P, 1).repeat(B, 1, 1) * L
+        )
         counts = counts - nan_counts
-    
+
         if self.cached_counts is not None:
-            factor = B//self.cached_counts.size(0)
+            factor = B // self.cached_counts.size(0)
             self.cached_counts = self.cached_counts.repeat_interleave(factor, dim=0)
             counts += self.cached_counts
         self.cached_counts = counts[:, -1:, :]
@@ -66,10 +73,11 @@ class CausalRevIN(nn.Module):
 
         mean = cumsum_x / counts
 
-
         cumsum_x2 = torch.cumsum((x**2).nansum(dim=-1, keepdim=True), dim=1)
         if self.cached_cumsum_x2 is not None:
-            self.cached_cumsum_x2 = self.cached_cumsum_x2.repeat_interleave(factor, dim=0)
+            self.cached_cumsum_x2 = self.cached_cumsum_x2.repeat_interleave(
+                factor, dim=0
+            )
             cumsum_x2 += self.cached_cumsum_x2
         self.cached_cumsum_x2 = cumsum_x2[:, -1:, :]
 
@@ -77,13 +85,14 @@ class CausalRevIN(nn.Module):
         std = torch.sqrt(var + 1e-5)
 
         return mean, std
-    
+
     def clear_cache(self):
         self.cached_cumsum_x = None
         self.cached_cumsum_x2 = None
         self.cached_counts = None
         self.cached_mean = None
         self.cached_std = None
+
 
 class PrefixRevIN(nn.Module):
     def __init__(self, eps=1e-5, use_asinh=True, prefix_tokens=8):
@@ -113,24 +122,26 @@ class PrefixRevIN(nn.Module):
                 out = torch.asinh(out)
 
         elif mode == "denorm":
-            assert self.cached_mean is not None and self.cached_std is not None, \
-                "Call forward(..., 'norm') before 'denorm'"
+            assert (
+                self.cached_mean is not None and self.cached_std is not None
+            ), "Call forward(..., 'norm') before 'denorm'"
             if self.asinh:
                 x = torch.sinh(x)
             out = x * self.cached_std + self.cached_mean
-            
+
         else:
             raise NotImplementedError(f"Mode '{mode}' not implemented.")
         return out
 
     def _get_statistics(self, x):
-        mean = x[:, :self.prefix_tokens, :].mean(dim=(-1, -2), keepdim=True)
-        std = x[:, :self.prefix_tokens, :].std(dim=(-1, -2), keepdim=True) + self.eps
+        mean = x[:, : self.prefix_tokens, :].mean(dim=(-1, -2), keepdim=True)
+        std = x[:, : self.prefix_tokens, :].std(dim=(-1, -2), keepdim=True) + self.eps
         return mean, std
-    
+
     def clear_cache(self):
         self.cached_mean = None
         self.cached_std = None
+
 
 class NoRevIN(nn.Module):
     def __init__(self):
