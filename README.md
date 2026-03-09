@@ -4,7 +4,8 @@ This repository contains the official code for the paper:
 
 **Does Normalization Choice Matter for Causal Time-Series Foundation Models?**
 
-News ⭐: **2025-05-20**: The paper has been accepted at the [ICLR Workshop on Time Series in the Age of Large Models](https://tsalm-workshop.github.io).
+- News ⭐: **2025-05-20**: The paper has been accepted at the [ICLR Workshop on Time Series in the Age of Large Models](https://tsalm-workshop.github.io).
+- Update: Since the submission, the results have been extended to include Scaled Quantile Loss (SQL). We also added an evaluation of the model without normalization (NoRevIN). In addition, the aggregation of results per signal has been improved to make it more robust: when a signal is too long, it is split into smaller segments, and the final score for that signal is computed as the mean over its segment
 
 ---
 
