@@ -151,7 +151,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         if revin_config_name == "CausalRevIN":
             self.revin = CausalRevIN(asinh=use_asinh)
             self.prefix_tokens = None
-        elif revin_config_name == "RevIN":
+        elif revin_config_name == "RevIN" or revin_config_name == "OptimalRevIN":
             self.revin = RevIN(asinh=use_asinh)
             self.prefix_tokens = None
         elif revin_config_name == "PrefixRevIN":
@@ -335,11 +335,20 @@ def get_model(
             ).eval()
 
     elif revin_strategy == "NoRevIN":
+        assert not use_asinh, "NoRevIN strategy does not use asinh transformation."
         if kv_cache_if_possible:
             print("Using NoRevIN with KV caching for inference.")
             model = get_kv_model(revin_strategy=revin_strategy, use_asinh=use_asinh)
         else:
             model = PatchFM.from_pretrained(f"vilhess/PatchFM-{revin_strategy}").eval()
+
+    elif revin_strategy == "OptimalRevIN":
+        assert not use_asinh, "OptimalRevIN strategy does not use asinh transformation."
+        model = PatchFM.from_pretrained(
+            f"vilhess/PatchFM-{revin_strategy}").eval()
+        
+    else:
+        raise NotImplementedError(f"RevIN strategy '{revin_strategy}' not implemented.")
 
     model.to(device)
     return model

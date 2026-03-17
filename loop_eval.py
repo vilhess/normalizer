@@ -77,15 +77,16 @@ def main(config: DictConfig):
             "PrefixRevIN",
             "PrefixRevIN2",
             "NoRevIN",
+            "OptimalRevIN"
         ]:
             for use_asinh in [True, False]:
                 torch.manual_seed(0)
                 random.seed(0)
                 np.random.seed(0)
 
-                if revin_name == "NoRevIN" and use_asinh:
+                if (revin_name == "NoRevIN" and use_asinh) or (revin_name == "OptimalRevIN" and use_asinh):
                     print(
-                        f"Skipping NoRevIN with use_asinh=True as it is not applicable."
+                        f"Skipping {revin_name} with use_asinh=True as it is not applicable."
                     )
                     continue
 
