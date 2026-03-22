@@ -24,9 +24,9 @@ for seq_len in seq_lens:
     seq_length = int(seq_len)
 
     # Window boundaries
-    gift_window = np.load(f"../dataset/windows/gift_{seq_len}.npy").tolist()
-    utsd_window = np.load(f"../dataset/windows/utsd_{seq_len}.npy").tolist()
-    artificial_window = np.load(f"../dataset/windows/artificial_{seq_len}.npy").tolist()
+    gift_window = np.load(f"../dataset/windows2/gift_{seq_len}_2.npy").tolist()
+    utsd_window = np.load(f"../dataset/windows2/utsd_{seq_len}_2.npy").tolist()
+    artificial_window = np.load(f"../dataset/windows2/artificial_{seq_len}_2.npy").tolist()
 
     # --------------------------------------------------
     # 3️⃣ Now loop over models
@@ -55,7 +55,7 @@ for seq_len in seq_lens:
             elif "utsd" in dataset_results.lower():
                 windows = [0] + utsd_window
             else:
-                windows = artificial_window
+                windows = artificial_window + [10_000]  # add end boundary for artificial
 
             # ✅ Added safety check for empty slices
             if len(windows) < 2:
@@ -65,6 +65,9 @@ for seq_len in seq_lens:
             aggregated_results = {}
             for key in results.keys():
                 values = results[key]
+
+                assert len(values)==windows[-1], f"Length mismatch for {key} in {dataset_results}: {len(values)} vs {windows[-1]}"
+
                 aggregated_means = []
 
                 for i in range(len(windows) - 1):
