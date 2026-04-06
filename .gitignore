@@ -9,6 +9,7 @@ outputs/
 logs/
 raw_results/
 z.ipynb
+z.py
 
 raw_results2/
 processed_results.bak/
