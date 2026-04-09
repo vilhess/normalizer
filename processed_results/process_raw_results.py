@@ -24,9 +24,9 @@ for seq_len in seq_lens:
     seq_length = int(seq_len)
 
     # Window boundaries
-    gift_window = np.load(f"../dataset/windows2/gift_{seq_len}_2.npy").tolist()
-    utsd_window = np.load(f"../dataset/windows2/utsd_{seq_len}_2.npy").tolist()
-    artificial_window = np.load(f"../dataset/windows2/artificial_{seq_len}_2.npy").tolist()
+    gift_window = np.load(f"../dataset/windows/gift_{seq_len}.npy").tolist()
+    utsd_window = np.load(f"../dataset/windows/utsd_{seq_len}.npy").tolist()
+    artificial_window = np.load(f"../dataset/windows/artificial_{seq_len}.npy").tolist()
 
     # --------------------------------------------------
     # 3️⃣ Now loop over models
