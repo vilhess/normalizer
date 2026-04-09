@@ -40,7 +40,7 @@ class FeedForward(nn.Module):
 
 
 class TransformerEncoderLayer(nn.Module):
-    def __init__(self, d_model, n_heads, last, model_type="causal"):
+    def __init__(self, d_model, n_heads, last, model_type="causal", prefix_tokens=None):
         super().__init__()
         self.ln1 = nn.LayerNorm(d_model)
 
@@ -50,7 +50,7 @@ class TransformerEncoderLayer(nn.Module):
             )
         elif model_type == "prefix":
             self.attn = PrefixMultiHeadAttention(
-                d_model=d_model, n_heads=n_heads, last=last
+                d_model=d_model, n_heads=n_heads, last=last, prefix_tokens=prefix_tokens
             )
 
         self.ln2 = nn.LayerNorm(d_model)
@@ -64,19 +64,19 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, d_model, n_heads, n_layers, model_type="causal"):
+    def __init__(self, d_model, n_heads, n_layers, model_type="causal", prefix_tokens=None):
         super().__init__()
         self.layers = nn.ModuleList(
             [
                 TransformerEncoderLayer(
-                    d_model=d_model, n_heads=n_heads, last=False, model_type=model_type
+                    d_model=d_model, n_heads=n_heads, last=False, model_type=model_type, prefix_tokens=prefix_tokens
                 )
                 for _ in range(n_layers - 1)
             ]
         )
         self.layers.append(
             TransformerEncoderLayer(
-                d_model=d_model, n_heads=n_heads, last=True, model_type=model_type
+                d_model=d_model, n_heads=n_heads, last=True, model_type=model_type, prefix_tokens=prefix_tokens
             )
         )
         self.norm = nn.LayerNorm(d_model)
@@ -96,6 +96,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         n_layers_encoder,
         revin_config_name,
         use_asinh,
+        prefix_tokens=None,
         quantiles=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
         dropout=0.0,
     ):
@@ -121,10 +122,10 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
 
         elif revin_config_name == "PrefixRevIN":
             print(
-                f"Warining: PrefixRevIN KV Cache currently works only for context lengths longer or equal to 256 values."
+                f"Warning: PrefixRevIN KV Cache currently works only for context lengths longer or equal to {int(prefix_tokens*32)} values."
             )
             model_type = "prefix"
-            self.revin = PrefixRevIN(use_asinh=use_asinh)
+            self.revin = PrefixRevIN(use_asinh=use_asinh, prefix_tokens=prefix_tokens)
 
         else:
             raise NotImplementedError(
@@ -139,6 +140,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
             n_heads=n_heads,
             n_layers=n_layers_encoder,
             model_type=model_type,
+            prefix_tokens=prefix_tokens if "Prefix" in revin_config_name else None,
         )
         self.proj_output = ResidualBlock(
             in_dim=d_model, hid_dim=2 * d_model, out_dim=patch_len * self.n_quantiles
@@ -217,6 +219,18 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
 def get_kv_model(revin_strategy, use_asinh):
     if revin_strategy == "NoRevIN":
         model_name = f"vilhess/PatchFM-NoRevIN"
+
+    elif "PrefixRevIN_ablation" in revin_strategy:
+        if "k4" in revin_strategy:
+            prefix_tokens = 4
+        elif "k2" in revin_strategy:
+            prefix_tokens = 2
+        else:
+            raise ValueError(f"Invalid prefix token setting in {revin_strategy}. Expected 'k4' or 'k2'.")
+        model_name = (
+            f"vilhess/PatchFM-PrefixRevIN_ablation_k{prefix_tokens}"
+        )
+
     else:
         model_name = (
             f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}"

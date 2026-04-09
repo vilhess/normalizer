@@ -135,6 +135,7 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
         n_layers_encoder,
         revin_config_name,
         use_asinh,
+        prefix_tokens=8,
         quantiles=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
         dropout=0.0,
     ):
@@ -155,7 +156,8 @@ class PatchFM(nn.Module, PyTorchModelHubMixin):
             self.revin = RevIN(asinh=use_asinh)
             self.prefix_tokens = None
         elif revin_config_name == "PrefixRevIN":
-            self.prefix_tokens = 8
+            assert prefix_tokens is not None, "prefix_tokens must be provided for PrefixRevIN."
+            self.prefix_tokens = prefix_tokens
             self.revin = PrefixRevIN(asinh=use_asinh, prefix_tokens=self.prefix_tokens)
         elif revin_config_name == "NoRevIN":
             if use_asinh:
@@ -326,12 +328,29 @@ def get_model(
             ).eval()
 
     elif revin_strategy == "PrefixRevIN":
-        if kv_cache_if_possible and seq_len >= 256:
+        if kv_cache_if_possible and seq_len >= 256: # 256=8*32, 32 is the patch size, 8 is the prefix token number
             print("Using PrefixRevIN with KV caching for inference.")
             model = get_kv_model(revin_strategy=revin_strategy, use_asinh=use_asinh)
         else:
             model = PatchFM.from_pretrained(
                 f"vilhess/PatchFM-{revin_strategy}-{'asinh' if use_asinh else 'noasinh'}"
+            ).eval()
+
+    elif "PrefixRevIN_ablation" in revin_strategy:
+        assert not use_asinh, "Prefix ablation models do not use asinh transformation."
+        if "k4" in revin_strategy:
+            prefix_tokens = 4
+        elif "k2" in revin_strategy:
+            prefix_tokens = 2
+        else:
+            raise ValueError(f"Invalid prefix token setting in {revin_strategy}. Expected 'k4' or 'k2'.")
+
+        if kv_cache_if_possible and seq_len >= int(32*prefix_tokens):
+            print("Using PrefixRevIN with KV caching for inference.")
+            model = get_kv_model(revin_strategy=revin_strategy, use_asinh=False)
+        else:
+            model = PatchFM.from_pretrained(
+                f"vilhess/PatchFM-PrefixRevIN_ablation_k{prefix_tokens}"
             ).eval()
 
     elif revin_strategy == "NoRevIN":

@@ -72,7 +72,7 @@ class CausalMultiHeadAttention(nn.Module):
 
 
 class PrefixMultiHeadAttention(nn.Module):
-    def __init__(self, d_model, n_heads, last=False):
+    def __init__(self, d_model, n_heads, last=False, prefix_tokens=8):
         super().__init__()
         assert (
             d_model % n_heads == 0
@@ -88,7 +88,7 @@ class PrefixMultiHeadAttention(nn.Module):
         self.n_heads = n_heads
 
         self.rope = RotaryEmbedding(dim=self.head_dim // 2)
-        self.prefix_tokens = 8
+        self.prefix_tokens = prefix_tokens
 
         self.k_cache = None
         self.v_cache = None
